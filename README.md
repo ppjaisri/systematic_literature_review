@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Understanding How Software Engineering Research Mine GitHub
 ## Abstract
 GitHub allows other users especially researchers to access to the public repositories.
@@ -57,4 +58,14 @@ The dataset used in this study is available at [this repository](https://github.
 
 - Indicate for the leverage from others:
   `Previous Dataset, Provided Dataset`
+=======
+# systematic_literature_review
+Research topics: Systematic literature review on GitHub repository usage
+
+## Target data source
+To ensure the coverness of the topic, I select papers from these data source. May increase in the future.
+1. ArXiv
+2. Sciencedirect
+3. Springer
+>>>>>>> 0beab389fcec6d81f9a35a3e54c20c0b7cce4b83
 
