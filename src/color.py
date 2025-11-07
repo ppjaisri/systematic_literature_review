@@ -8,6 +8,7 @@ class Colors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+    GREY = '\033[90m'
 
     @staticmethod
     def success(text):
@@ -28,3 +29,7 @@ class Colors:
     @staticmethod
     def highlight(text):
         return f"{Colors.BOLD}{text}{Colors.ENDC}"
+    
+    @staticmethod
+    def secondary(text):
+        return f"{Colors.GREY}{text}{Colors.ENDC}"
