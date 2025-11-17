@@ -2,9 +2,7 @@ import re
 import os
 import io
 import json
-import tarfile
 import requests
-import traceback
 
 from pypdf import PdfReader
 from bs4 import BeautifulSoup
@@ -17,6 +15,7 @@ from datetime import datetime
 
 from color import Colors
 from doi import doi_query
+
 
 # ! Limit to 1 request per 3 seconds
 # * Paper must be after 2020
@@ -207,9 +206,15 @@ def remove_papers_not_in_target_venues(
     if not in_target_venues_save_path.exists():
         in_target_venues_save_path.mkdir(parents=True, exist_ok=True)
 
+    files = list(files)
+    number_files = len(files)
+    counter = 1
+
     for file in files:
+        print(f"Processing paper: {file.name}")
         if file.name in progress:
-            print(f"{Colors.warning('Skipping already processed paper:')} {file.name}")
+            print(f"{Colors.info(counter * 100 / number_files)} % {Colors.warning('Skipping already processed paper:')} {file.name}")
+            counter += 1
             continue
         sleep(3)
 
@@ -218,18 +223,20 @@ def remove_papers_not_in_target_venues(
 
         doi = paper.get('doi', None)
         if doi is None:
-            print(f"\t{Colors.warning('Skipping paper without DOI:')} {paper.get('title', 'No Title')}")
+            print(f"\t{Colors.info(counter * 100 / number_files)} % {Colors.warning('Skipping paper without DOI:')} {paper.get('title', 'No Title')}")
 
             with open(progress_path, 'a') as pf:
                 pf.write(file.name + '\n')
+            counter += 1
             continue
 
         doi_info = doi_query(doi)
         if doi_info is None:
-            print(f"\t{Colors.warning('Removed paper with invalid DOI:')} {paper.get('title', 'No Title')} with DOI: {doi}")
+            print(f"\t{Colors.info(counter * 100 / number_files)} {Colors.warning('Removed paper with invalid DOI:')} {paper.get('title', 'No Title')} with DOI: {doi}")
 
             with open(progress_path, 'a') as pf:
                 pf.write(file.name + '\n')
+            counter += 1
             continue
         doi_full_venue = doi_info.get('container-title', '')
 
@@ -249,20 +256,42 @@ def remove_papers_not_in_target_venues(
                 break
 
         if not is_target_venue:
-            print(f"\t{Colors.warning('Removed paper not in target venues:')} {paper.get('title', 'No Title')} with DOI: {doi}")
+            print(f"\t{Colors.info(counter * 100 / number_files)} % {Colors.warning('Removed paper not in target venues:')} {paper.get('title', 'No Title')} with DOI: {doi}")
 
             with open(progress_path, 'a') as pf:
                 pf.write(file.name + '\n')
+            counter += 1
             continue
+        else:
+            link = paper.get('link', '')
+            response = session.get(link)
+            file_name = file.stem
 
-        save_path = in_target_venues_save_path.joinpath(file.name)
-        with open(save_path, 'w+') as f:
-            json.dump(paper, f, indent=4, ensure_ascii=False)
+            if response.status_code == 200:
+                if '/' in file_name or '\\' in file_name:
+                    file_name = file_name.replace('/', '_').replace('\\', '_')
+
+                # reader = PdfReader(io.BytesIO(response.content))
+                save_path = in_target_venues_save_path.joinpath(f'{file_name}.pdf')
+                with open(save_path, 'wb+') as f:
+                    f.write(response.content)
+            else:
+                print(f"\t{Colors.info(counter * 100 / number_files)} % {Colors.warning('Could not download paper PDF:')} {paper.get('title', 'No Title')} with DOI: {doi}")
+                with open(progress_path, 'a') as pf:
+                    pf.write(file.name + '\n')
+                counter += 1
+
+                continue
+
+        # save_path = in_target_venues_save_path.joinpath(file.name)
+        # with open(save_path, 'w+') as f:
+        #     json.dump(paper, f, indent=4, ensure_ascii=False)
 
         with open(progress_path, 'a') as pf:
             pf.write(file.name + '\n')
 
-        print(f"\t{Colors.success('Kept paper in target venues:')} {paper.get('title', 'No Title')} {Colors.info('at:')} {save_path}")
+        print(f"\t{Colors.info(counter * 100 / number_files)} % {Colors.success('Kept paper in target venues:')} {paper.get('title', 'No Title')} {Colors.info('at:')} {save_path}")
+        counter += 1
 
 
     return
@@ -338,6 +367,10 @@ def remove_slr_and_survey_papers(
     if not non_slr_survey_papers_save_path.exists():
         non_slr_survey_papers_save_path.mkdir(parents=True, exist_ok=True)
 
+    files = list(files)
+    number_files = len(files)
+    counter = 1
+
     for paper_pdf in files:
         print(Colors.info("Processing paper:"), paper_pdf.name)
         paper_name = paper_pdf.stem
@@ -348,7 +381,7 @@ def remove_slr_and_survey_papers(
         )
 
         input_text = '''
-        If the paper is a systematic literature review (SLR), survey paper, or tool review paper, respond with "YES".
+        If the paper is a systematic literature review (SLR), survey, or interview paper respond with "YES".
         If the paper is not any of these types, respond with "NO".
         Answer only with "YES" or "NO".
         '''
@@ -386,10 +419,52 @@ def remove_slr_and_survey_papers(
                 with open(save_path, 'wb') as dest_file:
                     dest_file.write(src_file.read())
 
-            print(f"\t{Colors.success('Kept non-SLR/survey paper:')} {paper_pdf.name} {Colors.info('at:')} {save_path}")
+            print(f"\t{Colors.info(counter / number_files)} {Colors.success('Kept non-SLR/survey paper:')} {paper_pdf.name} {Colors.info('at:')} {save_path}")
         else:
-            print(f"\t{Colors.warning('Removed SLR/survey paper:')} {paper_pdf.name}")
+            print(f"\t{Colors.info(counter / number_files)} {Colors.warning('Removed SLR/survey paper:')} {paper_pdf.name}")
         sleep(1)
+        counter += 1
+
+    return
+
+
+# Remove papers that do not mention GitHub in title, abstract, or keywords
+def remove_papers_not_mentioned_in_github(
+    papers_path: Path,
+    mentioned_github_papers_save_path: Path,
+    openai_api_key: str,
+) -> None:
+    files = papers_path.glob('*.pdf')
+
+    if not mentioned_github_papers_save_path.exists():
+        mentioned_github_papers_save_path.mkdir(parents=True, exist_ok=True)
+
+    for paper_pdf in files:
+        print(paper_pdf)
+        print(Colors.info("Processing paper:"), paper_pdf.name)
+        paper_name = paper_pdf.stem
+
+        # try:
+        with open(paper_pdf, 'rb') as pdf_stream:
+            reader = PdfReader(pdf_stream)
+        
+            for page in reader.pages:
+                page_content = page.extract_text()
+                if 'eference' in page_content.lower():
+                    page_content = page_content.split('eference')[0]
+                if page_content and re.search(r'github\b(?!\.com)', page_content, re.IGNORECASE):
+                    save_path = mentioned_github_papers_save_path.joinpath(paper_pdf.name)
+                    with open(paper_pdf, 'rb') as src_file:
+                        with open(save_path, 'wb') as dest_file:
+                            dest_file.write(src_file.read())
+
+                    print(f"\t{Colors.success('Kept GitHub mentioned paper:')} {paper_name} {Colors.info('at:')} {save_path}")
+                    break
+                # else:
+                print(f"\t{Colors.warning('Removed paper not mentioning GitHub:')} {paper_name}")
+        # except Exception as exc:
+        #     print(f"\t{Colors.warning('Failed to read PDF:')} {paper_name} ({exc})")
+        #     continue
 
     return
 
@@ -400,13 +475,13 @@ def main() -> None:
     # print(f"Current Path: {current_path}")
     # query: str = 'GitHub Repositories'
     query: list = [
-        'GitHub Repositories',
-        'GitHub Repository',
+        # 'GitHub Repositories',
+        # 'GitHub Repository',
         'Software Repositories',
         'Software Repository',
-        'Pull Request',
-        'Commit',
-        'Issue'
+        # 'Pull Request',
+        # 'Commit',
+        # 'Issue'
     ]
 
     headers = {
@@ -416,10 +491,17 @@ def main() -> None:
 
     save_path: str = os.getenv('DATABASE_PATH')
     save_path = current_path.joinpath(save_path)
+    save_path = save_path.joinpath('test_idea_SE/')
 
     for q in query:
         query_path = '_'.join(q.split())
         save_index_path = save_path.joinpath(f'arxiv/1_references/')
+        # arxiv_query_all(
+        #     query=q,
+        #     save_path=save_index_path,
+        #     start=0,
+        #     max_results=200,
+        # )
 
     not_old_papers_path = save_path.joinpath('arxiv/2_not_old_papers/')
     # remove_old_papers(
@@ -439,18 +521,25 @@ def main() -> None:
     #     in_target_venues_save_path=in_target_venues_save_path
     # )
 
-    full_length_papers_path = save_path.joinpath('arxiv/5_full_length_papers/')
+    # full_length_papers_path = save_path.joinpath('arxiv/5_full_length_papers/')
     # remove_short_papers(
     #     papers_path=in_target_venues_save_path,
     #     long_papers_save_path=full_length_papers_path
     # )
+    
+    non_slr_survey_papers_path = save_path.joinpath('arxiv/5_non_slr_survey_papers/')
+    # remove_slr_and_survey_papers(
+    #     papers_path=in_target_venues_save_path,
+    #     non_slr_survey_papers_save_path=non_slr_survey_papers_path,
+    #     openai_api_key=os.getenv('OPENAI_API_KEY')
+    # )
 
-    non_slr_survey_papers_path = save_path.joinpath('arxiv/6_non_slr_survey_papers/')
-    remove_slr_and_survey_papers(
-        papers_path=full_length_papers_path,
-        non_slr_survey_papers_save_path=non_slr_survey_papers_path,
-        openai_api_key=os.getenv('OPENAI_API_KEY')
-    )
+    mentioned_github_papers_path = save_path.joinpath('arxiv/6_mentioned_github_papers/')
+    # remove_papers_not_mentioned_in_github(
+    #     papers_path=non_slr_survey_papers_path,
+    #     mentioned_github_papers_save_path=mentioned_github_papers_path,
+    #     openai_api_key=os.getenv('OPENAI_API_KEY')
+    # )
 
     return
 
