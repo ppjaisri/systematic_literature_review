@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Understanding How Software Engineering Research Mine GitHub
 ## Abstract
 GitHub allows other users especially researchers to access to the public repositories.
@@ -37,19 +36,22 @@ The dataset used in this study is available at [this repository](https://github.
 
 ## Progress and Plan
 ### Current Progress
-- **Dataset:** Collected 68,369 papers from [ArXiv](https://arxiv.org/)
--  **Selected Paper:** 216 paper from quality assessment criteria
+| Steps                   | Number of Papers | Description  |
+| ---                     | ---              | ---          |
+| Initial collected papers| 18,774           | Collecting unique research paper from 7 query terms |
+| Exclude old papers      | 12,303           | Exclude the paper that published before 2020 |
+| Exclude papers without DOI | 2,573         | Exclude the paper which never or not yet published |
+| Exclude non target venue papers | 171      | Exclude the paper which published outside the target venue |
+| Exclude secondary research papers & tool reviews papers | 160 | Exclude the SLR, Surveys, and tool reviews paper |
+| Exclude non-relevant GitHub paper | 88     | Exclude the paper which never mention GitHub in the paper |
 
 ### Next step
 ---
 | Research Question       | Objective |
 | ---                     | --- |
-| RQ 1: Type of Source    | Extract terms to distinguish between self-collected dataset studies and derived dataset studies. |
-|                         | Prepare a statistic result (number of type of source) between self-collected dataset studies and derived dataset studies. |
-| RQ 2: Usage Purpose     | Extracted terms from text mining process from the study |
-|                         | Mapping the results between mining terms and the frequently of appearance |
-| RQ 3: Dataset Selection | Extract the goal of study and grouping into a multiple group |
-|                         | Mapping the extracted terms into the group of study's goal and show a statistic result |
+| RQ 1: Type of Source    | Extract terms to distinguish between self-collected dataset studies and derived dataset studies. Prepare a statistic result (number of type of source) between self-collected dataset studies and derived dataset studies. |
+| RQ 2: Usage Purpose     | Extracted terms from text mining process from the study Mapping the results between mining terms and the frequently of appearance |
+| RQ 3: Dataset Selection | Extract the goal of study and grouping into a multiple group Mapping the extracted terms into the group of study's goal and show a statistic result |
 ---
 
 ## Text mining
@@ -58,14 +60,4 @@ The dataset used in this study is available at [this repository](https://github.
 
 - Indicate for the leverage from others:
   `Previous Dataset, Provided Dataset`
-=======
-# systematic_literature_review
-Research topics: Systematic literature review on GitHub repository usage
-
-## Target data source
-To ensure the coverness of the topic, I select papers from these data source. May increase in the future.
-1. ArXiv
-2. Sciencedirect
-3. Springer
->>>>>>> 0beab389fcec6d81f9a35a3e54c20c0b7cce4b83
 
